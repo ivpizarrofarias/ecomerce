@@ -1,5 +1,6 @@
 package com.ipf.software.controller;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import org.slf4j.*;
@@ -10,10 +11,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ipf.software.model.Producto;
 import com.ipf.software.model.Usuario;
 import com.ipf.software.service.ProductoService;
+import com.ipf.software.service.uploadFileService;
 
 
 @Controller
@@ -24,6 +28,9 @@ public class ProductoController {
 	
 	@Autowired
 	private ProductoService productoService;
+	
+	@Autowired
+	private uploadFileService upload;
 	
 	
 	@GetMapping("")
@@ -38,11 +45,26 @@ public class ProductoController {
 	}
 	
 	@PostMapping("/save")
-	public String save(Producto producto) {
+	public String save(Producto producto,@RequestParam("img") MultipartFile file) throws IOException {
 		
 		LOGGER.info("Este es el  objeto de productos {}",producto);
 		Usuario u = new Usuario(1, "", "", "", "","", "", "");
 		producto.setUsuario(u);
+		
+		//para subir imagen
+		if (producto.getId()==null) {// se ocupa cuando se crea por primera vez un producto
+			String nombreImagen= upload.saveImage(file);
+			producto.setImagen(nombreImagen);
+		}else {
+			if (file.isEmpty()) { // se edita un producto pero no se cambia la imagen de este.
+				Producto p= new Producto();
+				p=productoService.get(producto.getId()).get();
+				producto.setImagen(p.getImagen());
+			}else {//cambio de imagen
+				String nombreImagen= upload.saveImage(file);
+				producto.setImagen(nombreImagen);
+			}
+		}
 		
 		productoService.save(producto);
 		return "redirect:/productos" ;
